@@ -19,7 +19,7 @@ def _get_chunks_ranges(a, shift=None):
     out : numpy.ndarray
         a 2-dim numpy array. The first column is the (inclusive) start index of each segment. The second column is the
         (exclusive) stop index shifted by `shift` units.
-    """    
+    """
     repeats = np.full(len(a), 2)
     diff_is_one = np.diff(a) == 1
     repeats[1:] -= diff_is_one
@@ -115,7 +115,7 @@ def find_candidates(T, m, M_T, Σ_T, r, init_cands=None, right=True, finite=Fals
             
             for start, stop in cand_idx_chunks:
                 QT = core._sliding_dot_product(T[i:i+m], T[start:stop]) 
-                D = core._mass(T[i:i+m], T[start:stop], QT, M_T[i], Σ_T[i], M_T[start:stop-m+1], Σ_T[start:stop-m+1])
+                D = core._mass(T[i:i+m], T[start:stop], QT, M_T[i], Σ_T[i], M_T[start:stop-m+1], Σ_T[start:stop-m+1], True, )
 
                 mask = np.flatnonzero(D < r)   
                 is_cands[start:stop-m+1][mask] = False
@@ -192,7 +192,7 @@ def DRAG(data, m, r, include= None):
         include = np.ones(len(data)-m+1, dtype=bool)
     else:
         include=include[:len(data)-m+1]
-    T, M_T, Σ_T = core.preprocess(data, m)
+    T, M_T, Σ_T,  T_subseq_isconstan = core.preprocess(data, m)
     is_cands = find_candidates(T, m, M_T, Σ_T, r, init_cands=include, right=True)
     cand_index = np.flatnonzero(is_cands)
     is_cands = find_candidates(T, m, M_T, Σ_T, r, init_cands=is_cands, right=False)
