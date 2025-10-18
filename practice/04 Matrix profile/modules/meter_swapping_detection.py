@@ -6,12 +6,15 @@ from plotly.subplots import make_subplots
 from plotly.offline import init_notebook_mode
 import plotly.graph_objs as go
 import plotly.express as px
+
 plotly.offline.init_notebook_mode(connected=True)
 
 from modules.mp import *
 
+from typing import Tuple
 
-def heads_tails(consumptions: dict, cutoff, house_idx: list) -> dict, dict:
+
+def heads_tails(consumptions: dict, cutoff, house_idx: list) -> Tuple[dict, dict]:
     """
     Split time series into two parts: Head and Tail
 
@@ -32,11 +35,11 @@ def heads_tails(consumptions: dict, cutoff, house_idx: list) -> dict, dict:
     for i in house_idx:
         heads[f'H_{i}'] = consumptions[f'House{i}'][consumptions[f'House{i}'].index < cutoff]
         tails[f'T_{i}'] = consumptions[f'House{i}'][consumptions[f'House{i}'].index >= cutoff]
-    
+
     return heads, tails
 
 
-def meter_swapping_detection(heads: dict, tails: dict, house_idx: dict, m: int) -> dict:
+def meter_swapping_detection(heads, tails, house_idx, m):
     """
     Find the swapped time series pair
 
@@ -51,14 +54,29 @@ def meter_swapping_detection(heads: dict, tails: dict, house_idx: dict, m: int) 
     --------
     min_score: time series pair with minimum swap-score
     """
+    min_score = float('inf')
+    best_pair = {'i': None, 'j': None, 'mp_j': None}
+    eps = 1e-8
+    for i in house_idx:
+        for j in house_idx:
+            if i != j:
 
-    eps = 0.001
+                head_i = heads[f'H_{i}'].values.flatten()
+                tail_j = tails[f'T_{j}'].values.flatten()
+                tail_i = tails[f'T_{i}'].values.flatten()
 
-    min_score = {}
+                mp_ij = compute_mp(ts1=head_i, m=m, ts2=tail_j)
+                mp_ii = compute_mp(ts1=head_i, m=m, ts2=tail_i)
 
-    # INSERT YOUR CODE
-    
-    return min_score
+                score = np.min(mp_ij['mp']) / (np.min(mp_ii['mp']) + eps)
+
+                if score < min_score:
+                    min_score = score
+                    best_pair['i'] = i
+                    best_pair['j'] = j
+                    best_pair['mp_j'] = mp_ij
+
+    return best_pair
 
 
 def plot_consumptions_ts(consumptions: dict, cutoff, house_idx: list):
@@ -80,8 +98,9 @@ def plot_consumptions_ts(consumptions: dict, cutoff, house_idx: list):
                         vertical_spacing=0.02)
 
     for i in range(num_ts):
-        fig.add_trace(go.Scatter(x=list(consumptions.values())[i].index, y=list(consumptions.values())[i].iloc[:,0], name=f"House {house_idx[i]}"), row=i+1, col=1)
-        fig.add_vline(x=cutoff, line_width=3, line_dash="dash", line_color="red",  row=i+1, col=1)
+        fig.add_trace(go.Scatter(x=list(consumptions.values())[i].index, y=list(consumptions.values())[i].iloc[:, 0],
+                                 name=f"House {house_idx[i]}"), row=i + 1, col=1)
+        fig.add_vline(x=cutoff, line_width=3, line_dash="dash", line_color="red", row=i + 1, col=1)
 
     fig.update_annotations(font=dict(size=22, color='black'))
     fig.update_xaxes(showgrid=False,
@@ -104,9 +123,9 @@ def plot_consumptions_ts(consumptions: dict, cutoff, house_idx: list):
                       title_x=0.5,
                       title_font=dict(size=26, color='black'),
                       plot_bgcolor="rgba(0,0,0,0)",
-                      paper_bgcolor='rgba(0,0,0,0)', 
+                      paper_bgcolor='rgba(0,0,0,0)',
                       height=800,
                       legend=dict(font=dict(size=20, color='black'))
                       )
 
-    fig.show(renderer="colab")
+    fig.show(renderer="browser")
